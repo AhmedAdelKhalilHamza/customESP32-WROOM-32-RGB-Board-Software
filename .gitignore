@@ -1,0 +1,7 @@
+esp-homekit-sdk/
+
+my_homekit_projects/light_bulb_custom/build
+
+my_homekit_projects/light_bulb_custom/managed_components
+
+my_homekit_projects/light_bulb_custom/.vscode/BROWSE.VC.DB

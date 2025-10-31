@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "stdio.h": "c",
+        "stdbool.h": "c",
+        "string.h": "c",
+        "esp_log.h": "c",
+        "freertos.h": "c",
+        "app_wifi.h": "c",
+        "app_hap_setup_payload.h": "c"
+    }
+}

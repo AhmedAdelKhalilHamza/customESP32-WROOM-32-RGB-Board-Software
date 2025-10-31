@@ -1,0 +1,30 @@
+{
+    "configurations": [
+        {
+            "name": "ESP-IDF",
+            "intelliSenseMode": "gcc-x64",
+            "compilerPath": "C:/Espressif/tools/xtensa-esp-elf/esp-14.2.0_20241119/xtensa-esp-elf/bin/xtensa-esp32-elf-gcc.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "C:/Espressif/frameworks/esp-idf-v5.5.1/components/**",
+                "D:/ESP_WS/esp-homekit-sdk/components/**",
+                "D:/ESP_WS/esp-homekit-sdk/examples/**"
+            ],
+            "browse": {
+                "path": [
+                    "${workspaceFolder}",
+                    "C:/Espressif/frameworks/esp-idf-v5.5.1/components",
+                    "D:/ESP_WS/esp-homekit-sdk/components"
+                ],
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": "${workspaceFolder}/.vscode/browse.vc.db"
+            },
+            "defines": [
+                "ESP_PLATFORM"
+            ]
+        }
+    ],
+    "version": 4
+}
