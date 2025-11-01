@@ -46,19 +46,78 @@ static const char *TAG = "lightbulb";
 #define LEDC_IO26_TIMER              LEDC_TIMER_0
 #define LEDC_IO26_MODE               LEDC_LOW_SPEED_MODE
 #define LEDC_IO26_OUTPUT_IO          (26) // Define the output GPIO
-#define LEDC_IO26_CHANNEL            LEDC_CHANNEL_0
+#define LEDC_IO26_CHANNEL            LEDC_CHANNEL_1
 #define LEDC_IO26_DUTY_RES           LEDC_TIMER_13_BIT // Set duty resolution to 13 bits
 #define LEDC_IO26_FREQUENCY          (4000) // Frequency in Hertz. Set frequency at 4 kHz
 
 #define LEDC_IO27_TIMER              LEDC_TIMER_0
 #define LEDC_IO27_MODE               LEDC_LOW_SPEED_MODE
 #define LEDC_IO27_OUTPUT_IO          (27) // Define the output GPIO
-#define LEDC_IO27_CHANNEL            LEDC_CHANNEL_0
+#define LEDC_IO27_CHANNEL            LEDC_CHANNEL_2
 #define LEDC_IO27_DUTY_RES           LEDC_TIMER_13_BIT // Set duty resolution to 13 bits
 #define LEDC_IO27_FREQUENCY          (4000) // Frequency in Hertz. Set frequency at 4 kHz
 
 static uint8_t s_led_state = 0;
-uint32_t dimming_value = 0;
+// static uint32_t dimming_value = 0;
+
+static float s_hue = 0;
+static float s_saturation = 0;
+static int s_brightness = 100;
+
+// Convert Hue [0-360], Saturation [0-100], Brightness [0-100] to RGB (0–8191)
+static void hsb_to_rgb(float hue, float sat, float bri, uint32_t *r, uint32_t *g, uint32_t *b) {
+    float hh, p, q, t, ff;
+    long i;
+    float r_f, g_f, b_f;
+
+    sat /= 100.0;
+    bri /= 100.0;
+
+    if (sat <= 0.0) {
+        r_f = g_f = b_f = bri;
+    } else {
+        hh = hue;
+        if (hh >= 360.0) hh = 0.0;
+        hh /= 60.0;
+        i = (long)hh;
+        ff = hh - i;
+        p = bri * (1.0 - sat);
+        q = bri * (1.0 - (sat * ff));
+        t = bri * (1.0 - (sat * (1.0 - ff)));
+
+        switch (i) {
+            case 0:  r_f = bri; g_f = t; b_f = p; break;
+            case 1:  r_f = q; g_f = bri; b_f = p; break;
+            case 2:  r_f = p; g_f = bri; b_f = t; break;
+            case 3:  r_f = p; g_f = q; b_f = bri; break;
+            case 4:  r_f = t; g_f = p; b_f = bri; break;
+            case 5:
+            default: r_f = bri; g_f = p; b_f = q; break;
+        }
+    }
+
+    // Convert 0–1 float to LEDC duty range (13-bit = 0–8191)
+    *r = (uint32_t)(r_f * 8191);
+    *g = (uint32_t)(g_f * 8191);
+    *b = (uint32_t)(b_f * 8191);
+}
+
+static void update_led_color(void) 
+{
+    uint32_t r, g, b;
+    hsb_to_rgb(s_hue, s_saturation, s_brightness, &r, &g, &b);
+
+    ESP_LOGI(TAG, "RGB -> R:%d  G:%d  B:%d", r, g, b);
+
+    ESP_ERROR_CHECK(ledc_set_duty(LEDC_IO25_MODE, LEDC_IO25_CHANNEL, r));
+    ESP_ERROR_CHECK(ledc_update_duty(LEDC_IO25_MODE, LEDC_IO25_CHANNEL));
+
+    ESP_ERROR_CHECK(ledc_set_duty(LEDC_IO26_MODE, LEDC_IO26_CHANNEL, g));
+    ESP_ERROR_CHECK(ledc_update_duty(LEDC_IO26_MODE, LEDC_IO26_CHANNEL));
+
+    ESP_ERROR_CHECK(ledc_set_duty(LEDC_IO27_MODE, LEDC_IO27_CHANNEL, b));
+    ESP_ERROR_CHECK(ledc_update_duty(LEDC_IO27_MODE, LEDC_IO27_CHANNEL));
+}
 
 /**
  * @brief initialize the lightbulb lowlevel module
@@ -143,22 +202,24 @@ int lightbulb_set_on(bool value)
     if( value == true)
     {
         s_led_state = 1;
+        update_led_color();
     }
     else
     {
         s_led_state = 0;
+        ESP_ERROR_CHECK(ledc_set_duty(LEDC_IO25_MODE, LEDC_IO25_CHANNEL,  0 ) );
+        // Update duty to apply the new value
+        ESP_ERROR_CHECK(ledc_update_duty(LEDC_IO25_MODE, LEDC_IO25_CHANNEL));
+
+        ESP_ERROR_CHECK(ledc_set_duty(LEDC_IO26_MODE, LEDC_IO26_CHANNEL,  0 ) );
+        // Update duty to apply the new value
+        ESP_ERROR_CHECK(ledc_update_duty(LEDC_IO26_MODE, LEDC_IO26_CHANNEL));
+
+        ESP_ERROR_CHECK(ledc_set_duty(LEDC_IO27_MODE, LEDC_IO27_CHANNEL,  0) );
+        // Update duty to apply the new value
+        ESP_ERROR_CHECK(ledc_update_duty(LEDC_IO27_MODE, LEDC_IO27_CHANNEL));
     }
-    ESP_ERROR_CHECK(ledc_set_duty(LEDC_IO25_MODE, LEDC_IO25_CHANNEL,  s_led_state * dimming_value ) );
-    // Update duty to apply the new value
-    ESP_ERROR_CHECK(ledc_update_duty(LEDC_IO25_MODE, LEDC_IO25_CHANNEL));
-
-    ESP_ERROR_CHECK(ledc_set_duty(LEDC_IO26_MODE, LEDC_IO26_CHANNEL,  s_led_state * dimming_value ) );
-    // Update duty to apply the new value
-    ESP_ERROR_CHECK(ledc_update_duty(LEDC_IO26_MODE, LEDC_IO26_CHANNEL));
-
-    ESP_ERROR_CHECK(ledc_set_duty(LEDC_IO27_MODE, LEDC_IO27_CHANNEL,  s_led_state * dimming_value ) );
-    // Update duty to apply the new value
-    ESP_ERROR_CHECK(ledc_update_duty(LEDC_IO27_MODE, LEDC_IO27_CHANNEL));
+    
 
     return 0;
 }
@@ -169,6 +230,8 @@ int lightbulb_set_on(bool value)
 int lightbulb_set_saturation(float value)
 {
     ESP_LOGI(TAG, "lightbulb_set_saturation : %f", value);
+    s_saturation = value;
+    update_led_color();
     return 0;
 }
 
@@ -178,6 +241,8 @@ int lightbulb_set_saturation(float value)
 int lightbulb_set_hue(float value)
 {
     ESP_LOGI(TAG, "lightbulb_set_hue : %f", value);
+    s_hue = value;
+    update_led_color();
     return 0;
 }
 
@@ -186,23 +251,26 @@ int lightbulb_set_hue(float value)
  */
 int lightbulb_set_brightness(int value)
 {
+    // ESP_LOGI(TAG, "lightbulb_set_brightness : %d", value);
+    // // Set duty to 50%
+    // dimming_value = (( (value) * 8192 ) / 100);
+
+    // ESP_LOGI(TAG, "dimming_value to led : %d", dimming_value);
+
+    // ESP_ERROR_CHECK(ledc_set_duty(LEDC_IO25_MODE, LEDC_IO25_CHANNEL,  dimming_value ) );
+    // // Update duty to apply the new value
+    // ESP_ERROR_CHECK(ledc_update_duty(LEDC_IO25_MODE, LEDC_IO25_CHANNEL));
+
+    // ESP_ERROR_CHECK(ledc_set_duty(LEDC_IO26_MODE, LEDC_IO26_CHANNEL,  dimming_value ) );
+    // // Update duty to apply the new value
+    // ESP_ERROR_CHECK(ledc_update_duty(LEDC_IO26_MODE, LEDC_IO26_CHANNEL));
+
+    // ESP_ERROR_CHECK(ledc_set_duty(LEDC_IO27_MODE, LEDC_IO27_CHANNEL,  dimming_value ) );
+    // // Update duty to apply the new value
+    // ESP_ERROR_CHECK(ledc_update_duty(LEDC_IO27_MODE, LEDC_IO27_CHANNEL));
     ESP_LOGI(TAG, "lightbulb_set_brightness : %d", value);
-    // Set duty to 50%
-    dimming_value = (( (value) * 8192 ) / 100);
-
-    ESP_LOGI(TAG, "dimming_value to led : %d", dimming_value);
-
-    ESP_ERROR_CHECK(ledc_set_duty(LEDC_IO25_MODE, LEDC_IO25_CHANNEL,  dimming_value ) );
-    // Update duty to apply the new value
-    ESP_ERROR_CHECK(ledc_update_duty(LEDC_IO25_MODE, LEDC_IO25_CHANNEL));
-
-    ESP_ERROR_CHECK(ledc_set_duty(LEDC_IO26_MODE, LEDC_IO26_CHANNEL,  dimming_value ) );
-    // Update duty to apply the new value
-    ESP_ERROR_CHECK(ledc_update_duty(LEDC_IO26_MODE, LEDC_IO26_CHANNEL));
-
-    ESP_ERROR_CHECK(ledc_set_duty(LEDC_IO27_MODE, LEDC_IO27_CHANNEL,  dimming_value ) );
-    // Update duty to apply the new value
-    ESP_ERROR_CHECK(ledc_update_duty(LEDC_IO27_MODE, LEDC_IO27_CHANNEL));
+    s_brightness = value;
+    update_led_color();
 
     return 0;
 }
